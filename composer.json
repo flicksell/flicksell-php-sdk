@@ -1,0 +1,40 @@
+{
+    "name": "flicksell/sdk",
+    "description": "Official Flicksell SDK for seamless integration with Flicksell stores",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "FlickSell Team",
+            "email": "dev@flicksell.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "predis/predis": "^2.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "FlickSell\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "FlickSell\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "keywords": [
+        "flicksell",
+        "sdk",
+        "ecommerce",
+        "api",
+        "authentication",
+        "shopify-alternative"
+    ]
+} 
