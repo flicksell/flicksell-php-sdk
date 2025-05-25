@@ -1,4 +1,4 @@
-# FlickSell SDK
+# FlickSell PHP SDK
 
 Official PHP SDK for seamless integration with FlickSell stores. This SDK provides secure authentication and API communication between your apps and FlickSell stores.
 
@@ -14,7 +14,7 @@ Official PHP SDK for seamless integration with FlickSell stores. This SDK provid
 ## Installation
 
 ```bash
-composer require flicksell/sdk
+composer require flicksell/php-sdk
 ```
 
 ## Quick Start
@@ -311,6 +311,6 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For issues and questions:
-- GitHub Issues: [flicksell/sdk](https://github.com/flicksell/sdk)
+- GitHub Issues: [flicksell/php-sdk](https://github.com/flicksell/php-sdk)
 - Email: dev@flicksell.com
 - Documentation: [docs.flicksell.com](https://docs.flicksell.com) 

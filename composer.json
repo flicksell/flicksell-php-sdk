@@ -1,5 +1,5 @@
 {
-    "name": "flicksell/sdk",
+    "name": "flicksell/php-sdk",
     "description": "Official Flicksell SDK for seamless integration with Flicksell stores",
     "type": "library",
     "license": "MIT",
