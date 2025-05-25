@@ -16,7 +16,7 @@ session_start();
 // Your app's configuration
 $APP_KEY = 'adk_your_admin_key_from_flicksell_here';
 $APP_SECRET = 'your_admin_secret_from_flicksell_here';
-$SITENAME = 'YourStoreName'; // Your FlickSell store name
+$SITE_ID = 'site12345'; // Your FlickSell site ID
 
 // Optional Redis configuration for nonce checking
 $redisConfig = [
@@ -27,7 +27,7 @@ $redisConfig = [
 ];
 
 // Initialize FlickSell Auth (with 5-minute timestamp tolerance)
-$auth = new FlickSellAuth($APP_KEY, $APP_SECRET, $SITENAME, $redisConfig, 300);
+$auth = new FlickSellAuth($APP_KEY, $APP_SECRET, $SITE_ID, $redisConfig, 300);
 
 // Handle initial verification from FlickSell
 if (isset($_POST['flicksell_token']) && !isset($_SESSION['flicksell_verified'])) {
@@ -74,7 +74,7 @@ if (isset($_SESSION['flicksell_verified'])) {
     echo "<p><strong>Store:</strong> " . htmlspecialchars($_SESSION['flicksell_data']['iss']) . "</p>";
     echo "<p><strong>Session Age:</strong> " . $sessionAge . " seconds</p>";
     echo "<p><strong>API Key:</strong> " . htmlspecialchars($auth->getKey()) . "</p>";
-    echo "<p><strong>Sitename:</strong> " . htmlspecialchars($auth->getSitename()) . "</p>";
+    echo "<p><strong>Site ID:</strong> " . htmlspecialchars($auth->getSiteId()) . "</p>";
     
     // Example: Make an API call back to FlickSell
     if (isset($_POST['test_api'])) {
@@ -145,7 +145,7 @@ if (isset($_SESSION['flicksell_verified'])) {
     echo "<ul>";
     echo "<li><strong>APP_KEY:</strong> Your admin_key from FlickSell (starts with 'adk_')</li>";
     echo "<li><strong>APP_SECRET:</strong> Your admin_secret from FlickSell</li>";
-    echo "<li><strong>SITENAME:</strong> Your FlickSell store name</li>";
+    echo "<li><strong>SITE_ID:</strong> Your FlickSell site ID</li>";
     echo "</ul>";
     
     // For testing purposes, show a manual form

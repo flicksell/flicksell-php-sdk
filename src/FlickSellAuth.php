@@ -26,28 +26,31 @@ class FlickSellAuth
      * 
      * @param string $key The app's API key (admin_key or storefront_key)
      * @param string $secret The app's secret key (admin_secret or storefront_secret)
-     * @param string $sitename The sitename for message signing (default: 'Prototype0Registered')
+     * @param string $siteId The site ID for message signing (default: 'Prototype0Registered')
      * @param array $redisConfig Redis configuration (optional)
-     * @param int $maxTimestampAge Maximum age of timestamps in seconds (default: 300, max: 3600)
+     * @param int $maxTimestampAge Maximum age for timestamps in seconds (default: 300 = 5 minutes)
      */
-    public function __construct($key, $secret, $sitename = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300)
+    public function __construct($key, $secret, $siteId = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300)
     {
         $this->key = $key;
         $this->secret = $secret;
-        $this->sitename = $sitename;
-        $this->maxTimestampAge = min($maxTimestampAge, 3600); // Cap at 1 hour
+        $this->sitename = $siteId; // Store as sitename for backward compatibility
+        $this->maxTimestampAge = $maxTimestampAge;
         $this->httpClient = new HttpClient();
-        
+
         // Initialize Redis if config provided
-        $this->useRedis = !empty($redisConfig);
-        if ($this->useRedis) {
+        if ($redisConfig) {
             try {
                 $this->redis = new RedisClient($redisConfig);
-                $this->redis->ping(); // Test connection
+                $this->useRedis = true;
+                // Test connection
+                $this->redis->ping();
             } catch (\Exception $e) {
+                error_log("FlickSell SDK: Redis connection failed: " . $e->getMessage());
                 $this->useRedis = false;
-                error_log("FlickSell SDK: Redis connection failed, nonce checking disabled: " . $e->getMessage());
             }
+        } else {
+            $this->useRedis = false;
         }
     }
 

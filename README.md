@@ -27,32 +27,52 @@ require_once 'vendor/autoload.php';
 
 use FlickSell\FlickSellAuth;
 
-// Initialize with your app's key and secret
-$auth = new FlickSellAuth(
-    'adk_your_admin_key_here',      // Your admin_key from FlickSell
-    'your_admin_secret_here',       // Your admin_secret from FlickSell
-    'YourStoreName'                 // Your store's sitename
-);
+// Your app's configuration
+$APP_KEY = 'adk_your_admin_key_from_flicksell_here';
+$APP_SECRET = 'your_admin_secret_from_flicksell_here';
+$SITE_ID = 'site12345'; // Your FlickSell site ID
+
+// Optional Redis configuration for nonce checking
+$redisConfig = [
+    'scheme' => 'tcp',
+    'host'   => '127.0.0.1',
+    'port'   => 6379,
+    'database' => 0
+];
+
+// Initialize FlickSell Auth (with 5-minute timestamp tolerance)
+$auth = new FlickSellAuth($APP_KEY, $APP_SECRET, $SITE_ID, $redisConfig, 300);
 
 // Verify incoming request from FlickSell
-$payload = $auth->verifyRequest($_POST);
-
-if ($payload) {
-    echo "✅ Valid FlickSell request!";
-    echo "Store: " . $payload['iss'];
-    echo "Timestamp: " . $payload['iat'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flicksell_token'])) {
+    $result = $auth->verifyRequest($_POST);
     
-    // Store verification in session for subsequent requests
-    session_start();
-    $_SESSION['flicksell_verified'] = true;
-    $_SESSION['flicksell_data'] = $payload;
+    if ($result['success']) {
+        // Authentication successful - show your app
+        echo "<h1>Welcome to Your App!</h1>";
+        echo "<p>Authenticated successfully for site: " . htmlspecialchars($result['payload']['iss']) . "</p>";
+        
+        // Store verification in session for subsequent requests
+        session_start();
+        $_SESSION['flicksell_verified'] = true;
+        $_SESSION['flicksell_site'] = $result['payload']['iss'];
+        
+    } else {
+        // Authentication failed
+        http_response_code(403);
+        echo "<h1>Access Denied</h1>";
+        echo "<p>Error: " . htmlspecialchars($result['message']) . "</p>";
+    }
 } else {
-    echo "❌ Invalid request";
-    exit;
+    // No authentication token provided
+    http_response_code(400);
+    echo "<h1>Bad Request</h1>";
+    echo "<p>FlickSell authentication token required.</p>";
 }
+?>
 ```
 
-### 2. Making Authenticated Requests to FlickSell (App to Store)
+### 2. Making API Calls to FlickSell (From your app)
 
 ```php
 <?php
@@ -60,25 +80,32 @@ require_once 'vendor/autoload.php';
 
 use FlickSell\FlickSellAuth;
 
-// Initialize with your app's credentials
+// Initialize with your app credentials
 $auth = new FlickSellAuth(
-    'adk_your_admin_key_here',
-    'your_admin_secret_here',
-    'YourStoreName'
+    'stk_your_storefront_key_here',
+    'your_storefront_secret_here', 
+    'site12345' // Site ID
 );
 
-// Send authenticated request to FlickSell API
-$response = $auth->sendAuthenticatedRequest(
-    'https://yourstore.flicksell.com/api/users',
-    ['action' => 'get_users'],
-    'POST'
-);
-
-if ($response['success']) {
-    echo "API Response: " . $response['body'];
-} else {
-    echo "Error: " . $response['error'];
+// Make authenticated request to FlickSell API
+try {
+    $response = $auth->sendAuthenticatedRequest(
+        'https://yourstore.flicksell.com/api/get_users.php',
+        'site12345', // Site ID
+        [], // Additional data
+        'POST'
+    );
+    
+    if ($response['success']) {
+        $users = $response['users'];
+        echo "Retrieved " . count($users) . " users from FlickSell";
+    } else {
+        echo "API Error: " . $response['message'];
+    }
+} catch (Exception $e) {
+    echo "Request failed: " . $e->getMessage();
 }
+?>
 ```
 
 ## Advanced Configuration
