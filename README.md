@@ -155,7 +155,7 @@ $auth = new FlickSellAuth(
 #### Constructor
 
 ```php
-public function __construct($key, $secret, $siteId = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300)
+public function __construct($key, $secret, $siteId = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300, $useSession = true)
 ```
 
 - `$key` (string): Your app's API key (`admin_key` or `storefront_key`)
@@ -163,6 +163,7 @@ public function __construct($key, $secret, $siteId = 'Prototype0Registered', $re
 - `$siteId` (string): FlickSell site ID for message signing
 - `$redisConfig` (array|null): Redis configuration for nonce checking
 - `$maxTimestampAge` (int): Maximum age of timestamps in seconds (max: 3600)
+- `$useSession` (bool): Enable session management for persistent authentication (default: true)
 
 #### Methods
 
@@ -174,10 +175,38 @@ $payload = $auth->verifyToken($_POST['flicksell_token']);
 ```
 
 ##### verifyRequest($requestData = null)
-Convenience method to verify a request (uses $_REQUEST by default).
+Convenience method to verify a request with automatic session management.
 
 ```php
 $payload = $auth->verifyRequest($_POST);
+```
+
+##### isAuthenticated()
+Check if the current session is authenticated (requires session management).
+
+```php
+$isAuth = $auth->isAuthenticated(); // Returns true/false
+```
+
+##### clearAuthSession()
+Clear the current authentication session.
+
+```php
+$auth->clearAuthSession();
+```
+
+##### getAuthenticatedSiteId()
+Get the site ID from the current authenticated session.
+
+```php
+$siteId = $auth->getAuthenticatedSiteId(); // Returns site ID or false
+```
+
+##### verifyTokenStateless($token)
+Verify a token without session management (for API calls).
+
+```php
+$payload = $auth->verifyTokenStateless($token);
 ```
 
 ##### sendAuthenticatedRequest($url, $data = [], $method = 'POST')
@@ -204,6 +233,44 @@ Generate a JWT-like token for iframe authentication.
 
 ```php
 $token = $auth->generateToken(['custom' => 'data']);
+```
+
+## Session Management
+
+### Automatic Session Handling (Default)
+
+By default, the SDK manages authentication sessions automatically:
+
+```php
+// Session management enabled by default
+$auth = new FlickSellAuth($key, $secret, $siteId);
+
+// First request: verifies token and stores session
+$payload = $auth->verifyRequest($_POST);
+
+// Subsequent requests: uses stored session (no re-verification needed)
+if ($auth->isAuthenticated()) {
+    echo "Already authenticated for site: " . $auth->getAuthenticatedSiteId();
+}
+```
+
+### Session Lifecycle
+
+1. **First verification**: Token is verified and session is stored
+2. **Subsequent requests**: Session is checked first, skipping token verification
+3. **Session expiration**: Sessions expire after 1 hour or 12x timestamp tolerance (whichever is smaller)
+4. **Manual clearing**: Use `clearAuthSession()` to force logout
+
+### Stateless Mode (for API calls)
+
+For `file_get_contents()` or server-to-server calls, disable session management:
+
+```php
+// Disable session management
+$auth = new FlickSellAuth($key, $secret, $siteId, null, 300, false);
+
+// Or use stateless verification
+$payload = $auth->verifyTokenStateless($token);
 ```
 
 ## Authentication Flow
