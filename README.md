@@ -91,7 +91,6 @@ $auth = new FlickSellAuth(
 try {
     $response = $auth->sendAuthenticatedRequest(
         'https://yourstore.flicksell.com/api/get_users.php',
-        'site12345', // Site ID
         [], // Additional data
         'POST'
     );
@@ -128,7 +127,7 @@ $redisConfig = [
 $auth = new FlickSellAuth(
     'adk_your_admin_key_here',
     'your_admin_secret_here',
-    'YourStoreName',
+    'site12345', // Site ID
     $redisConfig,
     300 // 5 minutes timestamp tolerance
 );
@@ -145,7 +144,7 @@ $payload = $auth->verifyRequest();
 $auth = new FlickSellAuth(
     'sfk_your_storefront_key_here',    // Storefront key
     'your_storefront_secret_here',     // Storefront secret
-    'YourStoreName'
+    'site12345' // Site ID
 );
 ```
 
@@ -156,12 +155,12 @@ $auth = new FlickSellAuth(
 #### Constructor
 
 ```php
-public function __construct($key, $secret, $sitename = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300)
+public function __construct($key, $secret, $siteId = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300)
 ```
 
 - `$key` (string): Your app's API key (`admin_key` or `storefront_key`)
 - `$secret` (string): Your app's secret (`admin_secret` or `storefront_secret`)
-- `$sitename` (string): Store sitename for message signing
+- `$siteId` (string): FlickSell site ID for message signing
 - `$redisConfig` (array|null): Redis configuration for nonce checking
 - `$maxTimestampAge` (int): Maximum age of timestamps in seconds (max: 3600)
 
@@ -223,7 +222,7 @@ When making API calls to FlickSell, the SDK sends these parameters:
 
 The signature is generated as:
 ```php
-$message = "{$timestamp}_{$nonce}_{$sitename}";
+$message = "{$timestamp}_{$nonce}_{$siteId}";
 $signature = hash_hmac('sha256', $message, $secret);
 ```
 
@@ -264,7 +263,7 @@ use FlickSell\FlickSellAuth;
 $auth = new FlickSellAuth(
     'adk_your_key_here',
     'your_secret_here',
-    'YourStoreName'
+    'site12345' // Site ID
 );
 
 // Handle initial FlickSell request
@@ -273,7 +272,7 @@ if (isset($_POST['flicksell_token']) && !isset($_SESSION['flicksell_verified']))
     
     if ($payload) {
         $_SESSION['flicksell_verified'] = true;
-        $_SESSION['store_name'] = $payload['iss'];
+        $_SESSION['site_id'] = $payload['iss'];
         $_SESSION['verified_at'] = time();
     } else {
         die('Unauthorized');
@@ -287,7 +286,7 @@ if (!isset($_SESSION['flicksell_verified']) ||
 }
 
 // Your app logic here
-echo "Welcome to the app for store: " . $_SESSION['store_name'];
+echo "Welcome to the app for site: " . $_SESSION['site_id'];
 
 // Make API calls when needed
 if (isset($_POST['get_users'])) {

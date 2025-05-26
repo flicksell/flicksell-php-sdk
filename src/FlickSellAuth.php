@@ -22,11 +22,11 @@ class FlickSellAuth
     private $sitename;
 
     /**
-     * Initialize FlickSell Auth
+     * Initialize FlickSell authentication
      * 
-     * @param string $key The app's API key (admin_key or storefront_key)
-     * @param string $secret The app's secret key (admin_secret or storefront_secret)
-     * @param string $siteId The site ID for message signing (default: 'Prototype0Registered')
+     * @param string $key Your app's API key (admin_key or storefront_key)
+     * @param string $secret Your app's secret (admin_secret or storefront_secret)
+     * @param string $siteId FlickSell site ID for message signing
      * @param array $redisConfig Redis configuration (optional)
      * @param int $maxTimestampAge Maximum age for timestamps in seconds (default: 300 = 5 minutes)
      */
