@@ -18,12 +18,12 @@
     },
     "autoload": {
         "psr-4": {
-            "FlickSell\\Auth\\": "src/"
+            "FlickSell\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "FlickSell\\Auth\\Tests\\": "tests/"
+            "FlickSell\\Tests\\": "tests/"
         }
     },
     "minimum-stability": "stable",
