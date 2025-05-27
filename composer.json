@@ -1,6 +1,6 @@
 {
-    "name": "flicksell/php-sdk",
-    "description": "Official PHP SDK for FlickSell stores with OAuth 2.0 and HMAC authentication support",
+    "name": "flicksell/auth-sdk",
+    "description": "Official Flicksell Authentication SDK for secure app-to-store communication",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -11,35 +11,28 @@
     ],
     "require": {
         "php": ">=7.4",
-        "predis/predis": "^2.0",
-        "guzzlehttp/guzzle": "^7.0"
+        "predis/predis": "^2.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0"
     },
     "autoload": {
         "psr-4": {
-            "FlickSell\\": "src/"
+            "FlickSell\\Auth\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "FlickSell\\Tests\\": "tests/"
+            "FlickSell\\Auth\\Tests\\": "tests/"
         }
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "keywords": [
         "flicksell",
-        "ecommerce",
-        "api",
-        "oauth",
+        "authentication",
         "hmac",
-        "authentication"
-    ],
-    "homepage": "https://flicksell.com",
-    "support": {
-        "issues": "https://github.com/flicksell/php-sdk/issues",
-        "docs": "https://docs.flicksell.com"
-    }
+        "api",
+        "ecommerce"
+    ]
 } 

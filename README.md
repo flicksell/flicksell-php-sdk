@@ -1,409 +1,249 @@
-# FlickSell PHP SDK
+# FlickSell Auth SDK
 
-Official PHP SDK for seamless integration with FlickSell stores. This SDK provides secure authentication and API communication between your apps and FlickSell stores.
+Official PHP SDK for FlickSell API authentication and requests. Supports dual OAuth authentication for both Storefront and Admin APIs with automatic token management, caching, and refresh.
 
 ## Features
 
-- 🔐 **Secure HMAC-based authentication** with key + secret pairs
-- 🚀 **Redis-powered nonce checking** (optional) to prevent replay attacks
-- 🌐 **HTTP client** for making authenticated requests to FlickSell APIs
-- ⏰ **Configurable timestamp validation** (up to 1 hour)
-- 🛡️ **Built-in security best practices**
-- 📱 **JWT-like token support** for iframe apps
+- 🔐 **Dual OAuth Support** - Separate authentication for Storefront and Admin APIs
+- 🚀 **Automatic Token Management** - Handles token refresh and caching automatically
+- 📦 **Redis Caching** - Built-in Redis support for token storage
+- 🔄 **Smart Authentication** - Only authenticates when needed, reuses valid tokens
+- 🌐 **Full HTTP Support** - GET, POST, PUT, DELETE requests with proper error handling
+- 🛡️ **Security First** - Nonce generation, timestamp validation, secure token storage
 
 ## Installation
 
 ```bash
-composer require flicksell/php-sdk
+composer require flicksell/auth-sdk
 ```
 
 ## Quick Start
 
-### 1. App-Side Verification (Receiving requests from FlickSell)
-
 ```php
 <?php
-require_once 'vendor/autoload.php';
 
-use FlickSell\FlickSellAuth;
+use FlickSell\Auth\FlickSellClient;
+use FlickSell\Auth\Exceptions\FlickSellException;
 
-// Your app's configuration
-$APP_KEY = 'adk_your_admin_key_from_flicksell_here';
-$APP_SECRET = 'your_admin_secret_from_flicksell_here';
-$SITE_ID = 'site12345'; // Your FlickSell site ID
-
-// Optional Redis configuration for nonce checking
-$redisConfig = [
-    'scheme' => 'tcp',
-    'host'   => '127.0.0.1',
-    'port'   => 6379,
-    'database' => 0
-];
-
-// Initialize FlickSell Auth (with 5-minute timestamp tolerance)
-$auth = new FlickSellAuth($APP_KEY, $APP_SECRET, $SITE_ID, $redisConfig, 300);
-
-// Verify incoming request from FlickSell
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['flicksell_token'])) {
-    $result = $auth->verifyRequest($_POST);
-    
-    if ($result['success']) {
-        // Authentication successful - show your app
-        echo "<h1>Welcome to Your App!</h1>";
-        echo "<p>Authenticated successfully for site: " . htmlspecialchars($result['payload']['iss']) . "</p>";
-        
-        // Store verification in session for subsequent requests
-        session_start();
-        $_SESSION['flicksell_verified'] = true;
-        $_SESSION['flicksell_site'] = $result['payload']['iss'];
-        
-    } else {
-        // Authentication failed
-        http_response_code(403);
-        echo "<h1>Access Denied</h1>";
-        echo "<p>Error: " . htmlspecialchars($result['message']) . "</p>";
-    }
-} else {
-    // No authentication token provided
-    http_response_code(400);
-    echo "<h1>Bad Request</h1>";
-    echo "<p>FlickSell authentication token required.</p>";
-}
-?>
-```
-
-### 2. Making API Calls to FlickSell (From your app)
-
-```php
-<?php
-require_once 'vendor/autoload.php';
-
-use FlickSell\FlickSellAuth;
-
-// Initialize with your app credentials
-$auth = new FlickSellAuth(
-    'stk_your_storefront_key_here',
-    'your_storefront_secret_here', 
-    'site12345' // Site ID
+// Initialize client with your credentials
+$client = new FlickSellClient(
+    siteName: 'mystore',
+    storefrontKey: 'myapp_sf_key_12345',
+    storefrontSecret: 'myapp_sf_secret_abcdef',
+    adminKey: 'myapp_adm_key_67890',  // Optional
+    adminSecret: 'myapp_adm_secret_ghijkl'  // Optional
 );
 
-// Make authenticated request to FlickSell API
-try {
-    $response = $auth->sendAuthenticatedRequest(
-        'https://yourstore.flicksell.com/api/get_users.php',
-        [], // Additional data
-        'POST'
-    );
-    
-    if ($response['success']) {
-        $users = $response['users'];
-        echo "Retrieved " . count($users) . " users from FlickSell";
-    } else {
-        echo "API Error: " . $response['message'];
-    }
-} catch (Exception $e) {
-    echo "Request failed: " . $e->getMessage();
-}
-?>
+// Authenticate (handles everything automatically)
+$client->authenticate();
+
+// Make API requests
+$products = $client->requestStorefront('products', ['limit' => 10]);
+$orders = $client->requestAdmin('orders', ['status' => 'pending']);
 ```
 
-## Advanced Configuration
+## Authentication
 
-### With Redis (Recommended for Production)
+The SDK supports three authentication modes:
 
+### 1. Storefront Only
 ```php
-<?php
-use FlickSell\FlickSellAuth;
-
-// Redis configuration
-$redisConfig = [
-    'scheme' => 'tcp',
-    'host'   => '127.0.0.1',
-    'port'   => 6379,
-    'database' => 0
-];
-
-// Initialize with Redis for nonce checking
-$auth = new FlickSellAuth(
-    'adk_your_admin_key_here',
-    'your_admin_secret_here',
-    'site12345', // Site ID
-    $redisConfig,
-    300 // 5 minutes timestamp tolerance
+$client = new FlickSellClient(
+    siteName: 'mystore',
+    storefrontKey: 'your_storefront_key',
+    storefrontSecret: 'your_storefront_secret'
 );
 
-// Now nonce checking is enabled automatically
-$payload = $auth->verifyRequest();
+$client->authenticateStorefront();
 ```
 
-### Using Storefront Keys
-
+### 2. Admin Only
 ```php
-<?php
-// For storefront API access, use storefront credentials
-$auth = new FlickSellAuth(
-    'sfk_your_storefront_key_here',    // Storefront key
-    'your_storefront_secret_here',     // Storefront secret
-    'site12345' // Site ID
-);
-```
-
-## API Reference
-
-### FlickSellAuth Class
-
-#### Constructor
-
-```php
-public function __construct($key, $secret, $siteId = 'Prototype0Registered', $redisConfig = null, $maxTimestampAge = 300, $useSession = true)
-```
-
-- `$key` (string): Your app's API key (`admin_key` or `storefront_key`)
-- `$secret` (string): Your app's secret (`admin_secret` or `storefront_secret`)
-- `$siteId` (string): FlickSell site ID for message signing
-- `$redisConfig` (array|null): Redis configuration for nonce checking
-- `$maxTimestampAge` (int): Maximum age of timestamps in seconds (max: 3600)
-- `$useSession` (bool): Enable session management for persistent authentication (default: true)
-
-#### Methods
-
-##### verifyToken($token)
-Verify a FlickSell JWT-like token from iframe requests.
-
-```php
-$payload = $auth->verifyToken($_POST['flicksell_token']);
-```
-
-##### verifyRequest($requestData = null)
-Convenience method to verify a request with automatic session management.
-
-```php
-$payload = $auth->verifyRequest($_POST);
-```
-
-##### isAuthenticated()
-Check if the current session is authenticated (requires session management).
-
-```php
-$isAuth = $auth->isAuthenticated(); // Returns true/false
-```
-
-##### clearAuthSession()
-Clear the current authentication session.
-
-```php
-$auth->clearAuthSession();
-```
-
-##### getAuthenticatedSiteId()
-Get the site ID from the current authenticated session.
-
-```php
-$siteId = $auth->getAuthenticatedSiteId(); // Returns site ID or false
-```
-
-##### verifyTokenStateless($token)
-Verify a token without session management (for API calls).
-
-```php
-$payload = $auth->verifyTokenStateless($token);
-```
-
-##### sendAuthenticatedRequest($url, $data = [], $method = 'POST')
-Send an authenticated request to FlickSell API.
-
-```php
-$response = $auth->sendAuthenticatedRequest(
-    'https://store.flicksell.com/api/endpoint',
-    ['param' => 'value'],
-    'POST'
-);
-```
-
-##### generateAuthParams()
-Generate authentication parameters for manual API calls.
-
-```php
-$params = $auth->generateAuthParams();
-// Returns: ['key' => '...', 'timestamp' => 123, 'nonce' => '...', 'signature' => '...']
-```
-
-##### generateToken($additionalData = [])
-Generate a JWT-like token for iframe authentication.
-
-```php
-$token = $auth->generateToken(['custom' => 'data']);
-```
-
-## Session Management
-
-### Automatic Session Handling (Default)
-
-By default, the SDK manages authentication sessions automatically:
-
-```php
-// Session management enabled by default
-$auth = new FlickSellAuth($key, $secret, $siteId);
-
-// First request: verifies token and stores session
-$payload = $auth->verifyRequest($_POST);
-
-// Subsequent requests: uses stored session (no re-verification needed)
-if ($auth->isAuthenticated()) {
-    echo "Already authenticated for site: " . $auth->getAuthenticatedSiteId();
-}
-```
-
-### Session Lifecycle
-
-1. **First verification**: Token is verified and session is stored
-2. **Subsequent requests**: Session is checked first, skipping token verification
-3. **Session expiration**: Sessions expire after 1 hour or 12x timestamp tolerance (whichever is smaller)
-4. **Manual clearing**: Use `clearAuthSession()` to force logout
-
-### Stateless Mode (for API calls)
-
-For `file_get_contents()` or server-to-server calls, disable session management:
-
-```php
-// Disable session management
-$auth = new FlickSellAuth($key, $secret, $siteId, null, 300, false);
-
-// Or use stateless verification
-$payload = $auth->verifyTokenStateless($token);
-```
-
-## Authentication Flow
-
-### FlickSell API Authentication
-When making API calls to FlickSell, the SDK sends these parameters:
-
-```php
-[
-    'key' => 'adk_...',           // Your API key
-    'timestamp' => 1640995200,    // Current timestamp
-    'nonce' => 'abc123...',       // Random nonce
-    'signature' => 'def456...'    // HMAC signature
-]
-```
-
-The signature is generated as:
-```php
-$message = "{$timestamp}_{$nonce}_{$siteId}";
-$signature = hash_hmac('sha256', $message, $secret);
-```
-
-### Iframe Token Authentication
-For iframe apps, FlickSell sends a JWT-like token:
-```
-base64(json_payload).hmac_signature
-```
-
-## Security Features
-
-### Nonce Protection
-- Prevents replay attacks by tracking used nonces
-- Redis storage with automatic 1-hour expiration
-- Graceful degradation if Redis unavailable
-
-### Timestamp Validation
-- Configurable time window (default: 5 minutes, max: 1 hour)
-- Prevents old request replay
-- Accounts for reasonable clock drift
-
-### HMAC Signature
-- Uses SHA-256 for cryptographic signatures
-- Constant-time comparison to prevent timing attacks
-- Matches FlickSell's `auth_app` function exactly
-
-## Examples
-
-### Complete App Integration
-
-```php
-<?php
-session_start();
-require_once 'vendor/autoload.php';
-
-use FlickSell\FlickSellAuth;
-
-$auth = new FlickSellAuth(
-    'adk_your_key_here',
-    'your_secret_here',
-    'site12345' // Site ID
+$client = new FlickSellClient(
+    siteName: 'mystore',
+    adminKey: 'your_admin_key',
+    adminSecret: 'your_admin_secret'
 );
 
-// Handle initial FlickSell request
-if (isset($_POST['flicksell_token']) && !isset($_SESSION['flicksell_verified'])) {
-    $payload = $auth->verifyRequest();
-    
-    if ($payload) {
-        $_SESSION['flicksell_verified'] = true;
-        $_SESSION['site_id'] = $payload['iss'];
-        $_SESSION['verified_at'] = time();
-    } else {
-        die('Unauthorized');
-    }
-}
-
-// Check if session is still valid
-if (!isset($_SESSION['flicksell_verified']) || 
-    (time() - $_SESSION['verified_at']) > 3600) {
-    die('Session expired');
-}
-
-// Your app logic here
-echo "Welcome to the app for site: " . $_SESSION['site_id'];
-
-// Make API calls when needed
-if (isset($_POST['get_users'])) {
-    $response = $auth->sendAuthenticatedRequest(
-        'https://yourstore.flicksell.com/api/users'
-    );
-    
-    if ($response['success']) {
-        $users = json_decode($response['body'], true);
-        // Process users...
-    }
-}
-?>
+$client->authenticateAdmin();
 ```
 
-### Manual API Call
+### 3. Both APIs
+```php
+$client = new FlickSellClient(
+    siteName: 'mystore',
+    storefrontKey: 'your_storefront_key',
+    storefrontSecret: 'your_storefront_secret',
+    adminKey: 'your_admin_key',
+    adminSecret: 'your_admin_secret'
+);
+
+$client->authenticate(); // Authenticates both
+```
+
+## Making API Requests
+
+### Storefront API Requests
+
+Requests are sent to: `https://{sitename}.flicksell.com/flicksell-storefront-api/{endpoint}`
 
 ```php
-<?php
-// Generate auth parameters manually
-$params = $auth->generateAuthParams();
+// GET request with query parameters
+$products = $client->requestStorefront('products', ['limit' => 10, 'page' => 1]);
 
-// Use with cURL or any HTTP client
-$postData = array_merge($params, [
-    'action' => 'get_products',
-    'limit' => 10
+// POST request with data
+$cart = $client->requestStorefront('cart/add', [], [
+    'product_id' => 123,
+    'quantity' => 2,
+    'variant_id' => 456
 ]);
 
-$ch = curl_init('https://yourstore.flicksell.com/api/products');
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-$response = curl_exec($ch);
-curl_close($ch);
-?>
+// Simple GET
+$product = $client->requestStorefront('products/123');
+```
+
+### Admin API Requests
+
+Requests are sent to: `https://{sitename}.flicksell.com/flicksell-admin-api/{endpoint}`
+
+```php
+// GET orders with filters
+$orders = $client->requestAdmin('orders', [
+    'status' => 'pending',
+    'created_after' => '2024-01-01'
+]);
+
+// Create new product
+$newProduct = $client->requestAdmin('products', [], [
+    'name' => 'New Product',
+    'price' => 29.99,
+    'description' => 'Product description',
+    'inventory_quantity' => 100
+]);
+
+// Update existing product
+$updatedProduct = $client->requestAdmin('products/123', [], [
+    'price' => 39.99,
+    'inventory_quantity' => 150
+]);
+```
+
+## Configuration Options
+
+```php
+$client = new FlickSellClient(
+    siteName: 'mystore',
+    storefrontKey: 'your_key',
+    storefrontSecret: 'your_secret',
+    config: [
+        // Redis configuration
+        'redis' => [
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'database' => 0,
+            'prefix' => 'myapp_oauth:'
+        ],
+        
+        // HTTP configuration
+        'timeout' => 30,
+        'ssl_verify' => true,
+        
+        // Custom API endpoints (if needed)
+        'base_url' => 'https://custom.domain.com',
+        'storefront_base_url' => 'https://mystore.custom.com/api',
+        'admin_base_url' => 'https://mystore.custom.com/admin-api'
+    ]
+);
+```
+
+## Token Management
+
+The SDK handles tokens automatically:
+
+- **Automatic Caching**: Tokens are cached in Redis with proper expiration
+- **Smart Refresh**: Expired tokens are refreshed automatically
+- **Dual Storage**: Separate token storage for storefront and admin APIs
+- **Session Management**: Handles OAuth sessions and nonce validation
+
+### Manual Token Operations
+
+```php
+// Check authentication status
+if ($client->isStorefrontAuthenticated()) {
+    echo "Storefront is ready!";
+}
+
+if ($client->isAdminAuthenticated()) {
+    echo "Admin is ready!";
+}
+
+// Force token refresh
+$client->refreshTokens('storefront');
+$client->refreshTokens('admin');
+```
+
+## Error Handling
+
+The SDK throws `FlickSellException` for all API-related errors:
+
+```php
+try {
+    $client->authenticate();
+    $products = $client->requestStorefront('products');
+} catch (FlickSellException $e) {
+    echo "API Error: " . $e->getMessage();
+    
+    // Handle specific error cases
+    if (str_contains($e->getMessage(), 'authentication failed')) {
+        // Handle auth errors
+    } elseif (str_contains($e->getMessage(), 'HTTP 404')) {
+        // Handle not found errors
+    }
+}
+```
+
+## Advanced Usage
+
+### File Uploads
+
+```php
+// Upload product image
+$response = $client->requestAdmin('products/123/images', [], [
+    'image' => new CURLFile('/path/to/image.jpg', 'image/jpeg', 'product.jpg'),
+    'alt_text' => 'Product image'
+]);
+```
+
+### Custom Headers & Advanced Requests
+
+For more control, you can access the underlying HTTP client:
+
+```php
+// The SDK handles authentication headers automatically
+$response = $client->requestStorefront('custom-endpoint', 
+    ['param1' => 'value1'],  // GET params
+    ['data' => 'value']      // POST data
+);
 ```
 
 ## Requirements
 
 - PHP 7.4 or higher
-- Redis (optional, for nonce checking)
-- Composer
+- Redis server (for token caching)
+- cURL extension
+- JSON extension
 
-## License
+## Security
 
-MIT License - see LICENSE file for details.
+- All tokens are stored securely in Redis with proper expiration
+- OAuth 2.0 flow with nonce and timestamp validation
+- Automatic token refresh prevents stale authentication
+- SSL verification enabled by default
 
 ## Support
 
-For issues and questions:
-- GitHub Issues: [flicksell/php-sdk](https://github.com/flicksell/php-sdk)
-- Email: dev@flicksell.com
-- Documentation: [docs.flicksell.com](https://docs.flicksell.com) 
+For support, please contact the FlickSell development team or create an issue in the repository.
+
+## License
+
+MIT License - see LICENSE file for details. 
