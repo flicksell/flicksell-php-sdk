@@ -11,6 +11,6 @@ class StorefrontClient extends BaseClient
     }
 
     public function getUsers() {
-        return $this->authManager->makeStorefrontRequest('get-users');
+        return $this->authManager->makeStorefrontRequest('/get_users.php');
     }
 } 
