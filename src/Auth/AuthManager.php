@@ -32,8 +32,8 @@ class AuthManager
     public function makeStorefrontRequest($endpoint, $method = 'GET', $getParams = [], $postData = [])
     {
         $auth = $this->createStorefrontAuth();
-        $url = "https://" . $this->sitename . ".flicksell.com/flicksell-storefront-api/" . $endpoint;
-
+        $url = "https://" . $this->sitename . ".flicksell.com/flicksell_storefront_api" . $endpoint;
+        
         if (!empty($getParams)) {
             $url .= '?' . http_build_query($getParams);
         }
@@ -43,10 +43,9 @@ class AuthManager
 
     public function makeAdminRequest($endpoint, $method = 'GET', $getParams = [], $postData = [])
     {
-        // Send request easily with curl
         $auth = $this->createAdminAuth();
-        $url = "https://" . $this->sitename . ".flicksell.com/flicksell-admin-api/" . $endpoint;
-
+        $url = "https://" . $this->sitename . ".flicksell.com/admin/api" . $endpoint;
+        
         if (!empty($getParams)) {
             $url .= '?' . http_build_query($getParams);
         }
@@ -78,11 +77,16 @@ class AuthManager
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'X-FlickSell-Auth: ' . $auth,
+            'Content-Type: application/json'
+        ]);
+        
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, 1);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $auth);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            if (!empty($postData)) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+            }
         }
 
         $response = curl_exec($ch);
