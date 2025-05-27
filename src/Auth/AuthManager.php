@@ -10,6 +10,56 @@ class AuthManager
     private $adminKey;
     private $adminSecret;
 
+    public function loginToFlicksell() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        // Check if already logged in
+        if (isset($_SESSION['flicksell_auth_k7m9p2x8'])) {
+            $sessionData = $_SESSION['flicksell_auth_k7m9p2x8'];
+            $this->sitename = $sessionData['sitename'];
+            return $sessionData;
+        }
+
+        // Not logged in, verify auth from request
+        $req = $_REQUEST;
+        $type = "storefront";
+
+        if (isset($req['auth_key'])) {
+            $req = base64_decode($req['auth_key']);
+            $req = json_decode($req, true);
+            if ($req['timestamp'] < time() - 300) {
+                return ['success' => false, 'message' => 'Auth token expired'];
+            }
+            
+            if ($this->adminKey == $req['apikey']) {
+                $type = "admin";
+            } else if ($this->storefrontKey == $req['apikey']) {
+                $type = "storefront";
+            } else {
+                return ['success' => false, 'message' => 'Invalid API key'];
+            }
+
+            $signature = hash_hmac('sha256', $req['timestamp'] . " " . $req['nonce'] . " " . $req['sitename'] . " " . " ::::: Prototype 0 Registered", $type == "admin" ? $this->adminSecret : $this->storefrontSecret);
+            if ($signature != $req['signature']) {
+                return ['success' => false, 'message' => 'Invalid signature'];
+            }
+
+            // Auth successful, create session
+            $_SESSION['flicksell_auth_k7m9p2x8'] = [
+                "success" => true,
+                "sitename" => $req['sitename'],
+                "type" => $type
+            ];
+            $this->sitename = $req['sitename'];
+
+            return ['success' => true, 'type' => $type];
+        }
+
+        return ['success' => false, 'message' => 'No auth data provided'];
+    }
+
     public function createStorefrontAuth()
     {
         $timestamp = time();
