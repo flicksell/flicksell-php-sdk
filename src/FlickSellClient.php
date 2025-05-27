@@ -47,8 +47,8 @@ class FlickSellClient
         $this->adminKey = $adminKey;
         $this->adminSecret = $adminSecret;
 
-        // Initialize components
-        $this->tokenCache = new TokenCache($config['redis'] ?? []);
+        // Initialize components (Redis not required for direct auth)
+        $this->tokenCache = null; // Not used for direct auth
         $this->oauthManager = new OAuthManager($siteName, $this->tokenCache, $config);
         $this->requestClient = new RequestClient($siteName, $this->oauthManager, $config);
     }

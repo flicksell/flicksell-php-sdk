@@ -36,7 +36,7 @@ class RequestClient
     }
 
     /**
-     * Send authenticated request to API
+     * Send request to API endpoint (endpoint handles OAuth internally)
      *
      * @param string $apiType 'storefront' or 'admin'
      * @param string $endpoint API endpoint
@@ -47,54 +47,45 @@ class RequestClient
      */
     public function request(string $apiType, string $endpoint, array $getParams = [], array $postParams = []): string
     {
-        // Get app handle from cached data or derive from current session
-        $appHandle = $this->getAppHandle($apiType);
-        
-        // Get access token
-        $accessToken = $this->oauthManager->getAccessToken($apiType, $appHandle);
+        // Get just the API key and secret - endpoint handles OAuth
+        $credentials = $this->oauthManager->getCredentials($apiType);
         
         // Build URL
         $baseUrl = $apiType === 'storefront' ? $this->storefrontBaseUrl : $this->adminBaseUrl;
-        $url = $baseUrl . '/' . ltrim($endpoint, '/');
+        $endpoint = ltrim($endpoint, '/');
+        
+        // Ensure .php extension for endpoints
+        if (!str_contains($endpoint, '.php')) {
+            $endpoint = str_replace('-', '_', $endpoint) . '.php';
+        }
+        
+        $url = $baseUrl . '/' . $endpoint;
         
         if (!empty($getParams)) {
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Prepare headers
-        $headers = [
-            'Authorization: Bearer ' . $accessToken,
-            'User-Agent: FlickSell-SDK/1.0',
-            'Accept: application/json'
-        ];
+        // Send API key/secret - let endpoint handle OAuth internally
+        $allPostParams = array_merge([
+            'api_key' => $credentials['key'],
+            'api_secret' => $credentials['secret']
+        ], $postParams);
 
         // Initialize cURL
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $allPostParams,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_HTTPHEADER => [
+                'User-Agent: FlickSell-SDK/1.0'
+            ],
             CURLOPT_TIMEOUT => $this->config['timeout'] ?? 30,
             CURLOPT_SSL_VERIFYPEER => $this->config['ssl_verify'] ?? true,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3
         ]);
-
-        // Handle POST data
-        if (!empty($postParams)) {
-            curl_setopt($ch, CURLOPT_POST, true);
-            
-            // Determine content type
-            if ($this->isFileUpload($postParams)) {
-                // Multipart form data for file uploads
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $postParams);
-            } else {
-                // JSON data for regular requests
-                $headers[] = 'Content-Type: application/json';
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postParams));
-            }
-        }
 
         // Execute request
         $response = curl_exec($ch);
@@ -156,25 +147,33 @@ class RequestClient
      */
     public function put(string $apiType, string $endpoint, array $data = [], array $params = []): string
     {
-        $appHandle = $this->getAppHandle($apiType);
-        $accessToken = $this->oauthManager->getAccessToken($apiType, $appHandle);
+        $credentials = $this->oauthManager->getCredentials($apiType);
         
         $baseUrl = $apiType === 'storefront' ? $this->storefrontBaseUrl : $this->adminBaseUrl;
-        $url = $baseUrl . '/' . ltrim($endpoint, '/');
+        $endpoint = ltrim($endpoint, '/');
+        
+        if (!str_contains($endpoint, '.php')) {
+            $endpoint = str_replace('-', '_', $endpoint) . '.php';
+        }
+        
+        $url = $baseUrl . '/' . $endpoint;
         
         if (!empty($params)) {
             $url .= '?' . http_build_query($params);
         }
+
+        $allData = array_merge([
+            'api_key' => $credentials['key'],
+            'api_secret' => $credentials['secret']
+        ], $data);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => 'PUT',
-            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_POSTFIELDS => $allData,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $accessToken,
-                'Content-Type: application/json',
                 'User-Agent: FlickSell-SDK/1.0'
             ],
             CURLOPT_TIMEOUT => $this->config['timeout'] ?? 30
@@ -207,23 +206,33 @@ class RequestClient
      */
     public function delete(string $apiType, string $endpoint, array $params = []): string
     {
-        $appHandle = $this->getAppHandle($apiType);
-        $accessToken = $this->oauthManager->getAccessToken($apiType, $appHandle);
+        $credentials = $this->oauthManager->getCredentials($apiType);
         
         $baseUrl = $apiType === 'storefront' ? $this->storefrontBaseUrl : $this->adminBaseUrl;
-        $url = $baseUrl . '/' . ltrim($endpoint, '/');
+        $endpoint = ltrim($endpoint, '/');
+        
+        if (!str_contains($endpoint, '.php')) {
+            $endpoint = str_replace('-', '_', $endpoint) . '.php';
+        }
+        
+        $url = $baseUrl . '/' . $endpoint;
         
         if (!empty($params)) {
             $url .= '?' . http_build_query($params);
         }
+
+        $deleteData = [
+            'api_key' => $credentials['key'],
+            'api_secret' => $credentials['secret']
+        ];
 
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CUSTOMREQUEST => 'DELETE',
+            CURLOPT_POSTFIELDS => $deleteData,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $accessToken,
                 'User-Agent: FlickSell-SDK/1.0'
             ],
             CURLOPT_TIMEOUT => $this->config['timeout'] ?? 30
@@ -285,17 +294,5 @@ class RequestClient
         throw new FlickSellException($errorMessage);
     }
 
-    /**
-     * Get app handle (placeholder - needs implementation based on your system)
-     *
-     * @param string $apiType API type
-     * @return string App handle
-     * @throws FlickSellException
-     */
-    private function getAppHandle(string $apiType): string
-    {
-        // This is a placeholder - in practice, you'd need to store the app handle
-        // after authentication or derive it from the API key
-        throw new FlickSellException('App handle resolution not implemented');
-    }
+
 } 
