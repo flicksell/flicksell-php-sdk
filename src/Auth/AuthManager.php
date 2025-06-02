@@ -24,7 +24,7 @@ class AuthManager
 
         // Not logged in, verify auth from request
         $req = $_REQUEST;
-        $type = "storefront";
+        $type = "api";
 
         if (isset($req['auth_key'])) {
             $req = base64_decode($req['auth_key']);
@@ -33,15 +33,18 @@ class AuthManager
                 return ['success' => false, 'message' => 'Auth token expired'];
             }
             
+            // Check admin credentials for login
             if ($this->adminKey == $req['apikey']) {
                 $type = "admin";
+                $secret = $this->adminSecret;
             } else if ($this->storefrontKey == $req['apikey']) {
-                $type = "storefront";
+                $type = "api";
+                $secret = $this->storefrontSecret;
             } else {
                 return ['success' => false, 'message' => 'Invalid API key'];
             }
 
-            $signature = hash_hmac('sha256', $req['timestamp'] . " " . $req['nonce'] . " " . $req['sitename'] . " " . " ::::: Prototype 0 Registered", $type == "admin" ? $this->adminSecret : $this->storefrontSecret);
+            $signature = hash_hmac('sha256', $req['timestamp'] . " " . $req['nonce'] . " " . $req['sitename'] . " " . " ::::: Prototype 0 Registered", $secret);
             if ($signature != $req['signature']) {
                 return ['success' => false, 'message' => 'Invalid signature'];
             }
@@ -63,7 +66,7 @@ class AuthManager
     public function createStorefrontAuth()
     {
         $timestamp = time();
-        $nonce = bin2hex(random_bytes(16));
+        $nonce = $timestamp; // Use timestamp as nonce
         $sitename = $this->sitename;
         $key = $this->storefrontKey;
         $secret = $this->storefrontSecret;
@@ -106,10 +109,10 @@ class AuthManager
     private function createAdminAuth()
     {
         $timestamp = time();
-        $nonce = bin2hex(random_bytes(16));
+        $nonce = $timestamp; // Use timestamp as nonce
         $sitename = $this->sitename;
-        $key = $this->adminKey;
-        $secret = $this->adminSecret;
+        $key = $this->storefrontKey; // Use storefront credentials for API requests
+        $secret = $this->storefrontSecret;
 
         $send = [
             "timestamp" => $timestamp,
