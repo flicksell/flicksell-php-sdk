@@ -1,7 +1,5 @@
 <?php
 
-// Updated test comment
-
 namespace FlickSell\Auth;
 
 class AuthManager
