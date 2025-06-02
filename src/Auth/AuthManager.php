@@ -1,6 +1,6 @@
 <?php
 
-// Update comment
+// Updated test comment
 
 namespace FlickSell\Auth;
 
