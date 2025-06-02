@@ -1,5 +1,7 @@
 <?php
 
+// Update comment
+
 namespace FlickSell\Auth;
 
 class AuthManager
