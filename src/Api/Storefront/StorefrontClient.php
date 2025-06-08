@@ -22,21 +22,26 @@ class StorefrontClient extends BaseClient
         if ($coupon) {
             $data['coupon'] = $coupon;
         }
-        return $this->authManager->makeStorefrontRequest('/checkout.php', 'POST', $data);
+        return $this->authManager->makeStorefrontRequest('/checkout', 'POST', $data);
     }
 
     /**
      * Finalize an order
      */
     public function finalizeOrder($orderData) {
-        return $this->authManager->makeStorefrontRequest('/finalize-order.php', 'POST', $orderData);
+        return $this->authManager->makeStorefrontRequest('/finalize-order', 'POST', $orderData);
     }
 
     /**
      * General method to call any storefront API endpoint
      */
     public function callEndpoint($endpoint, $method = 'GET', $data = null, $headers = []) {
-        return $this->authManager->makeStorefrontRequest($endpoint, $method, $data, $headers);
+        // For GET requests, data goes to getParams; for POST requests, data goes to postData
+        if ($method === 'GET') {
+            return $this->authManager->makeStorefrontRequest($endpoint, $method, $data ?: [], []);
+        } else {
+            return $this->authManager->makeStorefrontRequest($endpoint, $method, [], $data ?: []);
+        }
     }
 
     /**

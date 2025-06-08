@@ -85,13 +85,19 @@ class AuthManager
     public function makeStorefrontRequest($endpoint, $method = 'GET', $getParams = [], $postData = [])
     {
         $auth = $this->createStorefrontAuth();
-        $url = "https://" . $this->sitename . ".flicksell.com/flicksell_storefront_api" . $endpoint;
+        $url = "https://" . $this->sitename . ".flicksell.com/flicksell-storefront-api" . $endpoint;
         
         if (!empty($getParams)) {
             $url .= '?' . http_build_query($getParams);
         }
 
-        return $this->executeRequest($url, $method, $auth, $postData);
+        // Check for UUID header from FlickSell and include it in storefront requests
+        $additionalHeaders = [];
+        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+            $additionalHeaders['X-FlickSell-User-UUID'] = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+        }
+
+        return $this->executeRequest($url, $method, $auth, $postData, $additionalHeaders);
     }
 
     public function makeAdminRequest($endpoint, $method = 'GET', $getParams = [], $postData = [])
@@ -103,7 +109,7 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        return $this->executeRequest($url, $method, $auth, $postData);
+        return $this->executeRequest($url, $method, $auth, $postData, []);
     }
 
     private function createAdminAuth()
@@ -125,15 +131,24 @@ class AuthManager
         return base64_encode(json_encode($send));
     }
 
-    private function executeRequest($url, $method, $auth, $postData = [])
+    private function executeRequest($url, $method, $auth, $postData = [], $additionalHeaders = [])
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        
+        // Build headers array
+        $headers = [
             'X-FlickSell-Auth: ' . $auth,
             'Content-Type: application/json'
-        ]);
+        ];
+        
+        // Add additional headers (like UUID)
+        foreach ($additionalHeaders as $key => $value) {
+            $headers[] = $key . ': ' . $value;
+        }
+        
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, 1);
