@@ -188,10 +188,10 @@ class AuthManager
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         
-        // Build headers array
+        // Build headers array - Use form data instead of JSON
         $headers = [
             'X-FlickSell-Auth: ' . $auth,
-            'Content-Type: application/json'
+            'Content-Type: application/x-www-form-urlencoded'
         ];
         
         // Add additional headers (like UUID)
@@ -204,7 +204,8 @@ class AuthManager
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, 1);
             if (!empty($postData)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+                // Send as form data instead of JSON so $_POST gets populated
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($postData));
             }
         }
 
