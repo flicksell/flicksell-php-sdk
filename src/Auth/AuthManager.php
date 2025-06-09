@@ -91,11 +91,15 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Check for UUID header from FlickSell and include it in storefront requests
-        $additionalHeaders = [];
+        // Always include UUID header - get from FlickSell or default to '0'
+        $user_uuid = '0';
         if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
-            $additionalHeaders['X-FlickSell-User-UUID'] = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
         }
+        
+        $additionalHeaders = [
+            'X-FlickSell-User-UUID' => $user_uuid
+        ];
 
         return $this->executeRequest($url, $method, $auth, $postData, $additionalHeaders);
     }
@@ -109,7 +113,17 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        return $this->executeRequest($url, $method, $auth, $postData, []);
+        // Always include UUID header - get from FlickSell or default to '0'
+        $user_uuid = '0';
+        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+            $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+        }
+        
+        $additionalHeaders = [
+            'X-FlickSell-User-UUID' => $user_uuid
+        ];
+
+        return $this->executeRequest($url, $method, $auth, $postData, $additionalHeaders);
     }
 
     private function createAdminAuth()
