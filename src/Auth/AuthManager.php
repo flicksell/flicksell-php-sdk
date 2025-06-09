@@ -101,18 +101,30 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Use stored UUID or get from header, default to '0'
-        $user_uuid = $this->userUuid ?: '0';
-        if (!$user_uuid && isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
-            $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
-            if ($user_uuid === 'false') {
-                $user_uuid = '0';
+        // Always try to get the latest UUID from headers first
+        $user_uuid = '0'; // Default fallback
+        
+        // Try to get from current request headers
+        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+            $header_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            if ($header_uuid && $header_uuid !== 'false' && $header_uuid !== '0') {
+                $user_uuid = $header_uuid;
+                // Update stored UUID
+                $this->userUuid = $header_uuid;
             }
+        }
+        
+        // If no valid UUID from headers, use stored UUID
+        if ($user_uuid === '0' && $this->userUuid && $this->userUuid !== 'false' && $this->userUuid !== '0') {
+            $user_uuid = $this->userUuid;
         }
         
         $additionalHeaders = [
             'X-FlickSell-User-UUID' => $user_uuid
         ];
+
+        // Debug logging (remove in production)
+        error_log("SDK makeStorefrontRequest - Endpoint: $endpoint, UUID being sent: $user_uuid, Stored UUID: " . ($this->userUuid ?: 'null') . ", Header UUID: " . ($_SERVER['HTTP_X_FLICKSELL_USER_UUID'] ?? 'not set'));
 
         return $this->executeRequest($url, $method, $auth, $postData, $additionalHeaders);
     }
@@ -126,13 +138,22 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Use stored UUID or get from header, default to '0'
-        $user_uuid = $this->userUuid ?: '0';
-        if (!$user_uuid && isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
-            $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
-            if ($user_uuid === 'false') {
-                $user_uuid = '0';
+        // Always try to get the latest UUID from headers first
+        $user_uuid = '0'; // Default fallback
+        
+        // Try to get from current request headers
+        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+            $header_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            if ($header_uuid && $header_uuid !== 'false' && $header_uuid !== '0') {
+                $user_uuid = $header_uuid;
+                // Update stored UUID
+                $this->userUuid = $header_uuid;
             }
+        }
+        
+        // If no valid UUID from headers, use stored UUID
+        if ($user_uuid === '0' && $this->userUuid && $this->userUuid !== 'false' && $this->userUuid !== '0') {
+            $user_uuid = $this->userUuid;
         }
         
         $additionalHeaders = [
