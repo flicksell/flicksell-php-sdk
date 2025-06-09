@@ -9,10 +9,20 @@ class AuthManager
     private $storefrontSecret;
     private $adminKey;
     private $adminSecret;
+    private $userUuid = null;
 
     public function loginToFlicksell() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+        }
+
+        // Store UUID from FlickSell header if available
+        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+            $this->userUuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            // Don't store "false" or "0" as valid UUIDs
+            if ($this->userUuid === 'false' || $this->userUuid === '0') {
+                $this->userUuid = null;
+            }
         }
 
         // Check if already logged in
@@ -91,10 +101,13 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Always include UUID header - get from FlickSell or default to '0'
-        $user_uuid = '0';
-        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+        // Use stored UUID or get from header, default to '0'
+        $user_uuid = $this->userUuid ?: '0';
+        if (!$user_uuid && isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
             $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            if ($user_uuid === 'false') {
+                $user_uuid = '0';
+            }
         }
         
         $additionalHeaders = [
@@ -113,10 +126,13 @@ class AuthManager
             $url .= '?' . http_build_query($getParams);
         }
 
-        // Always include UUID header - get from FlickSell or default to '0'
-        $user_uuid = '0';
-        if (isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
+        // Use stored UUID or get from header, default to '0'
+        $user_uuid = $this->userUuid ?: '0';
+        if (!$user_uuid && isset($_SERVER['HTTP_X_FLICKSELL_USER_UUID'])) {
             $user_uuid = $_SERVER['HTTP_X_FLICKSELL_USER_UUID'];
+            if ($user_uuid === 'false') {
+                $user_uuid = '0';
+            }
         }
         
         $additionalHeaders = [
@@ -192,5 +208,15 @@ class AuthManager
     {
         $this->adminKey = $key;
         $this->adminSecret = $secret;
+    }
+
+    public function getUserUuid()
+    {
+        return $this->userUuid;
+    }
+
+    public function setUserUuid($uuid)
+    {
+        $this->userUuid = $uuid;
     }
 }
